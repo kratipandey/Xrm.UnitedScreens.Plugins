@@ -65,6 +65,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CreateQuoteLine.cs" />
     <Compile Include="XrmEntities.cs" />
     <Compile Include="ProjectAutoNumberGenerator.cs" />
     <Compile Include="EntityMetadata.cs" />
