@@ -82,14 +82,23 @@ namespace Xrm.UnitedScreens.Plugins
 
                     }
 
-                    if (entity.GetAttributeValue<string>("us_opportunitytype") == "Branded Projects")
+                    if (entity.GetAttributeValue<string>("us_opportunitytype") == "Influencer Marketing")
                         CreateInfluencers(opportunity.Id, tracingService, service, entity.Id);
 
                     if (entity.GetAttributeValue<string>("us_opportunitytype") == "Others")
-                        CreateItems(opportunity.Id, tracingService, service,entity.Id);
+                    {
+                        CreateItems(opportunity.Id, tracingService, service, entity.Id);
+                        Money offer = entity.GetAttributeValue<Money>("us_offer");
+                        string name = entity.GetAttributeValue<string>("name");
+                        sumbudget = offer.Value;
+                        if (offer.Value!=0)
+                            _createOtherslineitem(service, offer,name, quoteid, tracingService);
+
+                    }
 
                     tracingService.Trace("sum of budget "+ sumbudget);
-                    entity.Attributes["us_totalrevenue"] = new Money(sumbudget);
+                    if(sumbudget!=0)
+                        entity.Attributes["us_totalrevenue"] = new Money(sumbudget);
                     entity.Attributes["totallineitemamount"] = new Money(sumbudget);
                     entity.Attributes["totalamountlessfreight"] = new Money(sumbudget);
                     entity.Attributes["totalamount"] = new Money(sumbudget);                    
@@ -107,6 +116,26 @@ namespace Xrm.UnitedScreens.Plugins
                     throw;
                 }
             }
+        }
+
+        private void _createOtherslineitem(IOrganizationService service, Money offer, string name, Guid quoteid, ITracingService tracingService)
+        {
+            // Create a task activity to follow up with the account customer in 7 days. 
+            Entity quoteline = new Entity("quotedetail");
+            
+            quoteline["extendedamount"] = offer;
+            quoteline["baseamount"] = offer;
+            quoteline["us_budget"] = offer;
+            quoteline["quantity"] = offer.Value;
+            quoteline["ispriceoverridden"] = true;
+            quoteline["quoteid"] = new EntityReference("quote", quoteid);
+            quoteline["priceperunit"] = new Money(1);
+            quoteline["productdescription"] = name;
+
+
+            // Create the quoteline in Microsoft Dynamics CRM.
+            tracingService.Trace("CreateQuotelinePlugin: Creating the quoteline for others.");
+            service.Create(quoteline);
         }
 
         private void CreateInfluencers(Guid opportunityId,ITracingService tracingService, IOrganizationService service, Guid quoteid)
@@ -207,21 +236,32 @@ namespace Xrm.UnitedScreens.Plugins
             quoteline["productdescription"] = lineitem.GetAttributeValue<string>("us_name");
             tracingService.Trace("Setting cpm");
             quoteline["us_cpm"] = lineitem.GetAttributeValue<Money>("us_cpm");
+            tracingService.Trace("Setting cpv");
             quoteline["us_cpv"] = lineitem.GetAttributeValue<Money>("us_cpv");
+            tracingService.Trace("Setting priceperunit");
             quoteline["priceperunit"] = new Money(lineitem.GetAttributeValue<Money>("us_cpm").Value/1000);
+            tracingService.Trace("Setting quantity");
             quoteline["quantity"] = lineitem.GetAttributeValue<decimal>("us_amountofimpressions");
+            tracingService.Trace("Setting amountofviews");
             quoteline["us_amountofviews"] = lineitem.GetAttributeValue<decimal>("us_amountofviews");
-            quoteline["us_campaigntype"] = lineitem.GetAttributeValue<OptionSetValue>("us_campaigntype"); 
+            tracingService.Trace("Setting campaigntype");
+            quoteline["us_campaigntype"] = lineitem.GetAttributeValue<OptionSetValue>("us_campaigntype");
+            tracingService.Trace("Setting extendedamount");
             quoteline["extendedamount"] = lineitem.GetAttributeValue<Money>("us_budget");
+            tracingService.Trace("Setting baseamount");
             quoteline["baseamount"] = lineitem.GetAttributeValue<Money>("us_budget");
+            tracingService.Trace("Setting budget");
             quoteline["us_budget"] = lineitem.GetAttributeValue<Money>("us_budget");
+            tracingService.Trace("Setting overridden");
             quoteline["ispriceoverridden"] = true;
+            tracingService.Trace("Setting quote");
             quoteline["quoteid"] = new EntityReference("quote",id);
                        
 
             // Create the quoteline in Microsoft Dynamics CRM.
             tracingService.Trace("CreateQuotelinePlugin: Creating the quoteline activity.");
             service.Create(quoteline);
+            tracingService.Trace("Quoteline created");
         }
     }
 }
